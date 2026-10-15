@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏰 故事大解密：線索追擊戰</title>
+    <!-- 引入 GSAP 動畫庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
+
+        :root {
+            --bg-night: radial-gradient(circle at 50% 30%, #291547 0%, #0c061a 100%);
+            --parchment: #fcf6ea;
+            --text-main: #3b2d1d;
+            --gold: #ffb300;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            background: var(--bg-night); min-height: 100vh;
+            font-family: 'Nunito', "Microsoft JhengHei", sans-serif;
+            color: var(--text-main); display: flex; justify-content: center; align-items: center;
+            overflow: hidden; padding: 15px;
+        }
+
+        .stars {
+            position: fixed; top:0; left:0; width:100vw; height:100vh; z-index: -1;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #ffd, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+                radial-gradient(3px 3px at 80px 190px, #fa0, rgba(0,0,0,0));
+            background-repeat: repeat; background-size: 250px 250px;
+            opacity: 0.6;
+        }
+
+        .panel {
+            background: var(--parchment); width: 94vw; max-width: 1250px; height: 88vh;
+            border-radius: 35px; border: 6px solid #c8b79b;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.7), inset 0 0 30px rgba(140,80,20,0.15);
+            padding: 25px 35px; display: flex; flex-direction: column; justify-content: space-between;
+            position: relative;
+        }
+
+        /* ================= 大廳設定頁 ================= */
+        #lobby { display: flex; flex-direction: column; justify-content: space-between; height: 88vh; }
+        .lobby-header { text-align: center; margin-bottom: 10px; }
+        .lobby-header h1 { font-size: 2.8rem; color: #5c3d1e; margin-bottom: 8px; }
+        
+        .lobby-toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #f0e4cc; padding: 10px 20px; border-radius: 20px; margin-bottom: 12px;
+            border: 2px dashed #bcaaa4; flex-wrap: wrap; gap: 10px;
+        }
+        .seat-config { font-size: 1.5rem; font-weight: 900; color: #5c3d1e; display: flex; align-items: center; gap: 8px; }
+        .seat-config input {
+            font-size: 1.6rem; width: 75px; text-align: center; padding: 4px;
+            border: 3px solid #8c6d46; border-radius: 12px; font-weight: 900; background: #fff;
+        }
+        
+        .selection-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-tag {
+            padding: 8px 18px; font-size: 1.2rem; font-weight: 900; border-radius: 15px;
+            border: 2px solid #8c6d46; cursor: pointer; background: #fff; transition: 0.15s;
+        }
+        .btn-tag:active { transform: scale(0.95); }
+        .count-badge { font-size: 1.3rem; font-weight: 900; color: #d32f2f; margin-left: 5px; }
+
+        /* 故事勾選清單容器 */
+        .story-selector-container {
+            flex-grow: 1; overflow-y: auto; background: #fffdf9; border: 3px solid #d7ccc8;
+            border-radius: 20px; padding: 15px; margin-bottom: 12px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .story-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 10px;
+        }
+        .story-item {
+            display: flex; align-items: center; gap: 8px; background: #fdfaf3;
+            border: 2px solid #e0d5c1; border-radius: 12px; padding: 8px 12px;
+            cursor: pointer; transition: all 0.15s; font-size: 1.25rem; font-weight: bold;
+            color: #4e342e;
+        }
+        .story-item:hover { background: #fff3e0; border-color: #ffb74d; }
+        .story-item.checked { background: #e8f5e9; border-color: #66bb6a; color: #1b5e20; }
+        .story-item input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; accent-color: #2e7d32; }
+
+        .lobby-footer { text-align: center; }
+        .btn-start {
+            font-size: 2.2rem; padding: 12px 60px; background: #43a047; color: white;
+            border: none; border-radius: 50px; cursor: pointer; font-weight: 900;
+            box-shadow: 0 8px 0 #1b5e20; transition: 0.1s;
+        }
+        .btn-start:active { transform: translateY(8px); box-shadow: none; }
+
+        /* ================= 遊戲舞台 ================= */
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .progress-badge { font-size: 2.2rem; font-weight: 900; background: #eedebe; padding: 8px 25px; border-radius: 50px; color: #5c3d1e; }
+        .tool-btns { display: flex; gap: 12px; }
+        .icon-btn {
+            font-size: 2rem; width: 65px; height: 65px; border-radius: 50%; border: 3px solid #bcaaa4;
+            background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1); transition: 0.15s;
+        }
+        .icon-btn:active { transform: scale(0.92); }
+
+        .stage {
+            flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; padding: 15px;
+        }
+        #clue-text {
+            font-size: clamp(2.2rem, 3.8vw, 3.8rem); font-weight: 900; line-height: 1.45; color: #2d1e12;
+            word-break: break-all;
+        }
+        #hint-box {
+            margin-bottom: 20px; font-size: 2rem; background: #ede7f6; color: #512da8;
+            padding: 10px 30px; border-radius: 20px; border: 3px dashed #7e57c2; font-weight: bold; display: none;
+        }
+        #ans-text {
+            font-size: clamp(3.5rem, 6.5vw, 6rem); font-weight: 900; color: #c62828;
+            text-shadow: 4px 4px 0px #ffcdd2; display: none; margin-top: 15px;
+        }
+
+        .controls { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; height: 125px; }
+        .act-btn {
+            background: #fff; border: 4px solid; border-radius: 25px; font-size: 1.9rem; font-weight: 900;
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 10px 0; transition: all 0.15s;
+        }
+        .act-btn:active:not(.disabled) { transform: translateY(10px); box-shadow: 0 0 0 !important; }
+        .act-btn small { font-size: 1.1rem; margin-top: 4px; opacity: 0.8; }
+
+        .btn-c { border-color: #42a5f5; color: #1565c0; box-shadow: 0 10px 0 #1e88e5; }
+        .btn-h { border-color: #ab47bc; color: #6a1b9a; box-shadow: 0 10px 0 #8e24aa; }
+        .btn-r { border-color: #ef5350; color: #b71c1c; background: #ffebee; box-shadow: 0 10px 0 #e53935; }
+        
+        .btn-r.mode-award {
+            background: #fff9c4 !important; border-color: #fbc02d !important; color: #e65100 !important;
+            box-shadow: 0 10px 0 #f57f17 !important; animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse { from{transform:scale(1);} to{transform:scale(1.03);} }
+
+        .disabled { background: #e0e0e0 !important; border-color: #bdbdbd !important; color: #757575 !important; box-shadow: none !important; transform: translateY(10px); cursor: default; }
+
+        /* ================= 計分板 Modal ================= */
+        #modal {
+            position: fixed; top:0; left:0; width:100vw; height:100vh; background: rgba(0,0,0,0.85);
+            z-index: 1000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px);
+        }
+        .modal-body {
+            background: var(--parchment); width: 85vw; max-width: 1000px; max-height: 85vh; border-radius: 35px;
+            border: 8px solid var(--gold); padding: 35px; display: flex; flex-direction: column;
+        }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-head h2 { font-size: 2.6rem; color: #e65100; }
+        .grid-seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 15px; overflow-y: auto; padding: 10px; }
+        
+        .seat {
+            background: #fff; border: 4px solid #ffca28; border-radius: 20px; padding: 12px 5px;
+            text-align: center; cursor: pointer; box-shadow: 0 6px 0 #ffa000; transition: 0.1s;
+        }
+        .seat:active { transform: translateY(6px); box-shadow: none; }
+        .seat .num { font-size: 2.2rem; font-weight: 900; color: #3e2723; }
+        .seat .pt { font-size: 1.3rem; font-weight: bold; color: #d32f2f; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="stars"></div>
+
+    <!-- 1. 設定與選題大廳 -->
+    <div id="lobby" class="panel">
+        <div class="lobby-header">
+            <h1>👑 故事大解密：線索追擊戰</h1>
+        </div>
+
+        <div class="lobby-toolbar">
+            <div class="seat-config">
+                <label>👥 班級座號總數：</label>
+                <input type="number" id="total-stu" value="30" min="1" max="50">
+            </div>
+            <div class="selection-actions">
+                <button class="btn-tag" onclick="toggleSelectAll(true)">✅ 一鍵全選</button>
+                <button class="btn-tag" onclick="toggleSelectAll(false)">❌ 一鍵取消</button>
+                <span class="count-badge" id="selected-counter">已選取：70 / 70 題</span>
+            </div>
+        </div>
+
+        <!-- 70 題多選容器 -->
+        <div class="story-selector-container">
+            <div class="story-grid" id="story-grid"></div>
+        </div>
+
+        <div class="lobby-footer">
+            <button class="btn-start" onclick="initGame()">隨機洗牌並開始挑戰 ▶</button>
+        </div>
+    </div>
+
+    <!-- 2. 遊戲主舞台 -->
+    <div id="game" class="panel" style="display:none;">
+        <div class="header">
+            <div class="progress-badge" id="badge">📜 第 1 / 70 題</div>
+            <div class="tool-btns">
+                <button class="icon-btn" onclick="openScoreboard()" title="看全班計分榜">🏆</button>
+                <button class="icon-btn" onclick="skipQ()" title="跳下一題">⏭️</button>
+                <button class="icon-btn" onclick="backToLobby()" title="設定 / 返回大廳">⚙️</button>
+            </div>
+        </div>
+
+        <div class="stage">
+            <div id="hint-box"></div>
+            <div id="clue-text">✨ 題庫已隨機打亂！請點擊寶箱開啟線索</div>
+            <div id="ans-text"></div>
+        </div>
+
+        <div class="controls">
+            <button class="act-btn btn-c" id="bc1" onclick="showClue(1)">📖 ❶ <small>得 10 分</small></button>
+            <button class="act-btn btn-c" id="bc2" onclick="showClue(2)">📖 ❷ <small>得 5 分</small></button>
+            <button class="act-btn btn-c" id="bc3" onclick="showClue(3)">📖 ❸ <small>得 2 分</small></button>
+            <button class="act-btn btn-h" id="bh"  onclick="showHint()">🔮 提示</button>
+            <button class="act-btn btn-r" id="br"  onclick="handleRedBtn()">🎁 答案</button>
+        </div>
+    </div>
+
+    <!-- 3. 座號加分彈窗 -->
+    <div id="modal">
+        <div class="modal-body">
+            <div class="modal-head">
+                <h2 id="modal-title">🏆 點選答對的同學座號加分</h2>
+                <button class="icon-btn" onclick="closeScoreboard()">✖</button>
+            </div>
+            <div class="grid-seats" id="seat-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        // ================= 內建合成音效 =================
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let actx;
+        function sfx(type) {
+            if(!actx) actx = new AudioCtx();
+            if(actx.state === 'suspended') actx.resume();
+            const osc = actx.createOscillator(), gain = actx.createGain();
+            osc.connect(gain); gain.connect(actx.destination);
+            const t = actx.currentTime;
+            
+            if(type==='open'){
+                osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(800, t+0.15);
+                gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t+0.15);
+                osc.start(t); osc.stop(t+0.15);
+            } else if(type==='tada'){
+                osc.type='triangle'; osc.frequency.setValueAtTime(523, t); osc.frequency.setValueAtTime(659, t+0.12); osc.frequency.setValueAtTime(783, t+0.24);
+                gain.gain.setValueAtTime(0.4, t); gain.gain.linearRampToValueAtTime(0.01, t+0.6);
+                osc.start(t); osc.stop(t+0.6);
+            } else if(type==='coin'){
+                osc.type='sine'; osc.frequency.setValueAtTime(987, t); osc.frequency.setValueAtTime(1318, t+0.08);
+                gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t+0.25);
+                osc.start(t); osc.stop(t+0.25);
+            }
+        }
+
+        // ================= 70 題完整資料庫 =================
+        const rawDB = [
+            {t:"吉伊卡哇", h:"連除草跟討伐怪物都要考檢定證照的奇妙世界！", c:[`這群小動物群幾乎不會說完整的句子，平時只會發出簡單的擬聲詞。`,`生活非常不容易，需要靠著除草和討伐怪物賺取報酬，還要努力考取檢定證照。`,`主角是一隻白色的小可愛，好朋友是一隻愛講話的藍色貓咪和一隻過度興奮的黃色兔兔。`]},
+            {t:"間諜家家酒", h:"全家互相隱瞞真實身份，每天都在演戲假裝溫馨。", c:[`這是一個由間諜爸爸、殺手媽媽和超能力實驗體女兒臨時組成的虛構家庭。`,`裡面的女兒是個顏藝大師，貢獻了無數個嘲諷與震驚的搞笑表情包，而且她最喜歡吃花生。`,`擁有讀心術的粉紅色頭髮小女孩必須努力考上名校，好幫助假爸爸完成維持世界和平的任務。`]},
+            {t:"鬼滅之刃", h:"紫藤花是這個世界觀裡最重要的防禦植物。", c:[`故事的主軸是哥哥為了讓變成怪物的妹妹變回人類，決定加入一個神秘組織踏上復仇與拯救之旅。`,`戰鬥時不靠魔法，而是靠著各種奇特的呼吸法和特別的日本刀來斬殺惡鬼。`,`妹妹平時白天不能曬到太陽，只能躲在哥哥背著的木箱裡，嘴裡還咬著一根竹枷。`]},
+            {t:"哆啦A夢", h:"主角看到老鼠會嚇到想拿出地球破壞炸彈。", c:[`主角是一隻來自二十二世紀、因為遭遇意外而沒有耳朵的貓型機器人。`,`他最害怕老鼠，只要看到老鼠就會嚇到拿出毀滅世界的道具；最喜歡的點心是銅鑼燒。`,`他的腹部有一個連接四次元空間的口袋，總是能拿出任意門或竹蜻蜓來外掛拯救考試考零分的主人。`]},
+            {t:"進擊的巨人", h:"高聳的城牆內部，其實藏著比怪獸更巨大的秘密。", c:[`這部作品最震撼的名台詞是「那一天，人類回想起了受支配的恐懼」。`,`故事裡的人類為了躲避會吃人的巨大生物，建造了三道高達五十公尺的巨大防禦城牆。`,`戰鬥時人們會裝備立體機動裝置在空中飛躍，唯一的目標是割開巨大生物的後頸。`]},
+            {t:"航海王", h:"主角吃下的神秘果實，其實跟傳說中的太陽神有關。", c:[`故事開頭每次都會提到傳奇海賊在臨刑前留下的財寶宣言，從此開啟了大航海時代。`,`主角群搭乘著擁有特殊羊頭造型或太陽造型的帆船，每個人都有不同職責，如廚師、航海士、狙擊手。`,`世界觀裡有一種吃了會獲得超能力但會變成旱鴨子的神秘果實，而主角最招牌的配件是一頂草帽。`]},
+            {t:"咒術迴戰", h:"把某個古代大魔王的二十根手指頭當成主食吞下肚。", c:[`故事裡最強的白髮老師總是戴著眼罩，他的終極領域展開招式叫做無量空處。`,`主角因為意外吞食了古代詛咒之王的手指，被迫踏上收集並封印其餘二十根手指的危險旅程。`,`這是一部圍繞著由人類負面情緒產生的神秘邪惡力量，並由專門學校的人員進行拔除的超燃動漫。`]},
+            {t:"烏龍派出所", h:"全日本欠下最多賠款、最常寫悔過書的超狂公務員。", c:[`主角是一位擁有兩條連在一起的濃密一字眉、永遠穿著木屐上班的瘋狂警察。`,`故事發生在日本東京的一間小派出所，主角雖然腦袋靈光常常發明奇怪的賺錢點子，但最後一定會把警局炸掉或欠下一大筆債。`,`雖然主角天天惹麻煩，但他有一位開著高級跑車的富豪男同事，以及一位開直升機上班的千金女同事。`]},
+            {t:"獵人", h:"粉絲們最常祈禱作者身體健康的一部傳奇作品。", c:[`這部作品以經常長期休刊聞名，粉絲們常開玩笑說希望有生之年能看到大結局。`,`故事裡有一種非常深奧的超能力戰鬥系統，包含纏、絕、練、發等四大基本功。`,`故事講述一個穿綠色衣服的刺蝟頭少年，為了尋找失蹤的父親，決定參加錄取率極低的職業執照考試。`]},
+            {t:"名偵探柯南", h:"不管主角去哪裡露營或度假，當地的房價跟地價就會暴跌。", c:[`不論主角去到哪裡旅行，當地就一定會發生神秘案件，因此被網友戲稱為死神小學生。`,`主角身邊有一位胖胖的發明家博士，幫他量身打造了領結變聲器、手錶型麻醉槍和太陽能滑板。`,`本來是一位著名的高中生偵探，因為目擊黑衣組織的交易而被灌下神秘毒藥，導致身體縮小成小學一年級的外表。`]},
+            {t:"葬送的芙麗蓮", h:"打敗最終大魔王、世界和平之後，真正的故事才剛開始。", c:[`故事的開頭不是冒險的起點，而是勇者小隊已經順利打倒魔王、凱旋歸來後的日常生活。`,`主角是一位活了上千年的雙馬尾魔法使，對時間的感覺和人類完全不同，經常花費好幾年只為了尋找一種開花的魔法。`,`由於同伴們都是壽命短暫的人類，在參加完老友的葬禮後，這位長壽的精靈決定展開一場了解人類心靈的全新旅程。`]},
+            {t:"櫻桃小丸子", h:"全日本最常在開學前一天晚上狂趕作業的女孩。", c:[`故事的片尾曲節奏非常洗腦，歌詞裡一直重複著噼里啪啦、噼里啪啦的哼唱。`,`故事發生在日本靜岡，主角是一個留著鋸齒瀏海、穿著紅色吊帶裙、經常賴床又不想寫作業的小學三年級女生。`,`她的班上有留著洋蔥頭的奇特同學、有非常有錢的大少爺，而她在家裡最棒的靠山是溺愛她的爺爺。`]},
+            {t:"蠟筆小新", h:"屁股的功能在這裡不只是坐著，還能拿來走路跟跳舞。", c:[`主角最討厭吃青椒，最喜歡看動感超人的卡通，還發明了把褲子拉下來跳舞的搞笑招式。`,`故事背景在日本春日部市，主角是一個擁有濃密粗眉毛、說話語調奇特、常常搭不上娃娃車的五歲幼稚園男童。`,`他的家裡有一位愛買名牌的媽媽、一位腳很臭的爸爸、一位喜歡帥哥的嬰兒妹妹，還有一隻像棉花糖一樣的白狗。`]},
+            {t:"寶可夢", h:"迷人反派二人組加一隻會說話的貓，每次退場都化作星光。", c:[`這部動畫橫跨了二十多年，戴帽子的主角直到最近幾年才終於拿到世界冠軍，並與陪伴多年的電擊鼠搭檔一起光榮退休。`,`故事裡的反派組織每次被打飛上天空化為星星時，都會大喊好討厭的感覺啊。`,`冒險者們必須帶著紅白相間的球體在世界各地旅行，捕捉、培育各種神奇生物，目標是成為最強大師。`]},
+            {t:"排球少年", h:"被嘲笑是「沒落的強豪、飛不起來的烏鴉」的球隊。", c:[`這部作品最燃的一句話是「排球是永遠向上看的運動」。`,`主角群是一群穿著黑橘相間球衣的高中生，他們的球隊曾經被嘲笑是落地的烏鴉。`,`講述一位身材矮小但彈跳力驚人的主攻手，和一位個性高傲的天才舉球員，兩人在球場上合作打進全國大賽的故事。`]},
+            {t:"我推的孩子", h:"帶著前世記憶轉世重新出生，變成最愛偶像的雙胞胎。", c:[`主題曲在網路上創下數億次點閱，掀起全球瘋狂跳舞的熱潮。`,`故事揭露了演藝圈背後的殘酷與秘密，主角們在出生後竟然保留了前世的記憶，成為了當紅偶像的孩子。`,`故事從一位雙眼有著星星光芒的傳清美少女偶像遭遇意外開始，她的雙胞胎兒女長大後決定進入演藝圈尋找真相。`]},
+            {t:"火影忍者", h:"跑步的時候雙手一定要往後甩才跑得快。", c:[`角色們奔跑時會把雙手甩在身後、身體前傾，這種奇特的跑步姿勢在現實中引發很多人模仿。`,`這個世界的戰鬥需要聚集體內的能量，並透過複雜的手勢結印來發動各種屬性的忍術。`,`主角是一位體內封印著九條尾巴妖狐的黃髮孤兒，雖然從小被村民排擠，但他不放棄夢想，最後成為了守護村子的最高領袖。`]},
+            {t:"Minecraft", h:"這裡連太陽、月亮、雲朵跟瀑布全部都是方方正正的。", c:[`在這個世界裡，沒有精緻的畫面，所有的人物、動物、甚至太陽和月亮，全部都是方塊組成的。`,`每到夜晚就會變得非常危險，除了殭屍，還會有一種綠綠的、走路沒聲音、靠近你就會自爆的怪物。`,`玩家可以用雙手敲碎木頭，自由地挖礦、合成工具、蓋出城堡，是一款世界知名的沙盒遊戲。`]},
+            {t:"腦筋急轉彎", h:"你腦袋裡控制中心的主機板，最近新來了幾個青春期員工。", c:[`這部動畫將人類大腦裡的抽象概念具象化，在續集中還新增了焦慮、尷尬、羨慕和厭世等新角色。`,`故事的核心舞台是大腦總部，裡面有成千上萬顆發光的圓球，代表著主角從小到大的所有記憶。`,`故事講述一個小女孩大腦中的五種核心情緒，她們分別代表快樂、憂傷、憤怒、厭惡和恐懼，必須齊心協力維持平衡。`]},
+            {t:"動物方城市", h:"去這裡的車輛管理局辦個手續，可能會花掉你整整一天。", c:[`這部電影裡最受歡迎的配角是一隻在車輛管理局上班、講話和動作都慢到讓人抓狂的樹懶。`,`故事發生在一個所有哺乳動物都能和平共處的現代化大都市，但最近卻發生了肉食動物集體發狂的神秘失蹤案。`,`故事主角是一隻打破偏見考上第一名、來到大城市當警官的小兔子，以及一隻聰明狡猾、靠著賣冰棒賺錢的狐狸。`]},
+            {t:"玩具總動員", h:"只要房間的門一關上，他們就會開會討論主人的作息。", c:[`這部電影告訴我們，只要人類一離開房間，這些原本一動也不動的物品就會立刻活過來開始說話與冒險。`,`故事某一集的大反派，是一個在遊樂場夾娃娃機裡被遺棄、身上帶有草莓香氣的粉紅色絨毛玩具熊。`,`故事圍繞著一個傳統的西部牛仔玩偶，和一個堅信自己是拯救宇宙巡警的太空人模型，他們都是小男孩最珍惜的寶貝。`]},
+            {t:"可可夜總會", h:"一首通往神秘世界、由金黃色萬壽菊瓣鋪成的歌。", c:[`故事背景建立在傳統的亡靈節，畫面中鋪滿了由亮橘色萬壽菊瓣組成的神奇橋樑。`,`主角的家族因為祖先的恩怨而嚴禁任何音樂，但主角卻夢想成為吉他音樂家，並在機緣巧合下誤入了死人的世界。`,`這部催淚的電影圍繞著一首著名的經典原創歌曲，講述只要現實世界還有人記得，死去的親人就不會真正消失。`]},
+            {t:"怪獸電力公司", h:"大人們半夜上班的任務，就是偷偷打開小朋友的衣櫃。", c:[`這個神秘的世界需要依靠收集人類小孩在深夜被嚇到時的尖尖叫聲，來轉化為城市的電力。`,`這裡的工作人員每天都要穿過各式各樣的傳送門衣櫃，前往人類世界嚇唬小孩，但他們自己其實非常害怕人類。`,`故事的主角是一隻全身長滿藍紫色毛髮的大怪獸，和一隻只有一隻巨大眼睛的綠色球狀怪獸，他們意外收留了一個萌萌的小女孩。`]},
+            {t:"超人特攻隊", h:"製作超級英雄戰鬥服的第一條鐵律：絕對不准加斗篷！", c:[`這個家庭的媽媽身體可以無限延伸、大女兒會隱形、大兒子擁有極速、小嬰兒則有無限潛能。`,`故事裡有一位專門幫英雄設計服裝的時尚教母，她最經典的設計原則就是絕對不准加斗篷。`,`這是一個被迫隱姓埋名的超能力家族，直到世界再次面臨危機，全家人決定集體穿上紅黑相間的超人裝拯救世界。`]},
+            {t:"天外奇蹟", h:"把成千上萬個彩色氣球綁在屋頂上當作飛機引擎。", c:[`電影前十分鐘完全沒有台詞，卻用一首溫馨優美的鋼琴曲記錄了男女主角相識到老伴去世的一生，被譽為影史神作。`,`故事裡有一隻會說話的黃金獵犬，牠的項圈裝了高科技翻譯機，但只要一看到松鼠就會立刻大喊並分心。`,`故事講述一位脾氣古怪的孤單老爺爺，為了實現與亡妻的約定，在屋頂綁了成千上萬個彩色氣球，讓整座房子飛向天堂瀑布。`]},
+            {t:"料理鼠王", h:"頂級大廚的廚師帽裡面，其實藏著一個遙控器。", c:[`故事的核心精髓是一句經典名言：「每個人都能烹飪，即使是地位最卑微的生物也不例外」。`,`主角是一隻嗅覺與味覺異常靈敏、夢想成為頂級餐廳總廚的小老鼠。`,`牠躲在一個毫無廚藝天賦的餐廳打雜員工的廚師帽裡，透過拉扯對方的頭髮來操控雙手，做出驚豔美食評論家的神級料理。`]},
+            {t:"瓦力", h:"全地球最後一個還在努力上班整理環境的孤單員工。", c:[`故事前半段幾乎沒有任何對白，背景是幾百年後堆滿垃圾、人類早已搭乘飛船離開的荒涼地球。`,`主角是一台留在地球上清理垃圾的履帶式機器人，牠唯一的同伴是一隻打不死的蟑螂，直到一艘飛船送來了一台高科技白色蛋形機器人。`,`這台老舊的垃圾清理機器人非常喜歡收集人類的古董，牠在相遇後拼命保護地球上僅存的一株綠色秧苗，並一路追隨白色機器人飛向太空。`]},
+            {t:"海底總動員", h:"一位超級焦慮的父親，跨越太平洋的尋子大狂走。", c:[`故事裡有一隻在巨大海洋中游泳的健忘藍色魚，牠最經典的口頭禪和歌曲就是繼續往前游泳就對了。`,`故事起因於一隻條紋小魚在開學第一天，因為賭氣游到人類的船隻附近，結果被潛水的人類抓走。`,`故事講述一位無比焦慮的父親為了在巨大的太平洋中尋找被抓去雪梨牙醫診所魚缸的兒子，展開了一場跨越海洋的超級大補救。`]},
+            {t:"元素方城市", h:"水與火談戀愛，擁抱之前要先算好物理蒸發作用。", c:[`這個世界的居民由四大基本物質組成，彼此之間有著不同物質不相容的嚴格社會界線與居住區域。`,`男主角是一個多愁善感、隨時都會感動大哭的藍色水族人，在城市的公共安全部門擔任稽查員。`,`故事圍繞著一位脾氣火爆、在店裡幫忙的火族少女，與溫柔的水族青年相遇，兩人雖然無法觸碰彼此，卻擦出了愛的火花。`]},
+            {t:"神偷奶爸", h:"一群最愛吃香蕉、講著神秘外星文的黃色膠囊生物。", c:[`故事裡有一群身穿藍色牛仔吊帶褲、戴著護目鏡、講著由各國語言混合成香蕉話的黃色小膠囊生物。`,`主角原本是一個宣稱要偷走月球的科技大壞蛋，直到他迫不得已收養了三個在街上賣餅乾的孤兒院小女孩。`,`這位禿頭、穿著條紋圍巾的反派大叔，最後被三個女兒感化變成了超級好爸爸，而他手下最受歡迎的就是那群瘋狂的小小兵。`]},
+            {t:"獅子王", h:"剛出生就被狒狒舉高高，接受全大草原動物的歡呼。", c:[`故事開頭有一首震撼的非洲風主題曲，巫師猴子會在榮耀石的頂端把剛出生的繼承人高高舉起。`,`主角在逃亡路上結識了一隻野豬和一隻狐獴，牠們傳授了一句代表無憂無慮的非洲神奇咒語。`,`這是一部講述小獅子遭遇叔叔陷害、父親過世後流亡在外，長大後重回大草原奪回王位的經典動畫。`]},
+            {t:"汽車總動員", h:"這座城鎮裡，連天上飛的蒼蠅跟蚊子都有四個輪子。", c:[`這個世界完全沒有人類，所有的居民甚至連蒼蠅和蚊子都是由各種交通工具變成的。`,`主角是一輛全紅色的流線型王牌賽車，在前往決賽的路上意外迷路，受困在一個沒落的荒涼小鎮。`,`這輛紅色賽車的招牌口號是卡恰，牠在小鎮裡學會了友誼的真諦，並在鏽皮老卡車和退役老賽車的幫助下重新參賽。`]},
+            {t:"青春養成記", h:"只要情緒一激動，就會砰的一聲變成超巨大毛茸茸。", c:[`故事裡的女孩們瘋狂迷戀一個男子偶像團體，為了買演唱會門票不惜在學校偷偷打工賺錢。`,`故事背景設定在加拿大多倫多，女主角是一位十三歲的華裔少女，家族背負著一個古老的神奇詛咒。`,`女主角只要情緒太過激動、興奮或緊張，就會砰的一聲瞬間變成一隻體型巨大的紅貓熊。`]},
+            {t:"花木蘭", h:"一條自尊心超高的小紅龍，被迫當起體能教練。", c:[`主角身邊有一隻自尊心超強、負責搞笑的小紅龍，牠是由家族祖先派來守護主角的，身旁還有一隻帶來好運的蟋蟀。`,`故事裡最著名的經典插曲是女主角面對著水中的倒影，高唱著何時才能看見真實的自己。`,`女主角為了保護年邁生病的父親不被徵兵，決定在深夜剃掉長髮、穿上盔甲，女扮男裝代父從軍。`]},
+            {t:"冰雪奇緣", h:"一首歌洗腦全球，連雪人都嚮往過夏天的奇蹟故事。", c:[`只要這部電影主題曲的旋律一下，全世界的小朋友不分國籍都會跟著大聲合唱放手吧、放手吧。`,`故事裡有一隻由魔法創造出來、非常喜歡夏天與溫暖擁抱的搞笑雪人。`,`故事講述一個王國的長公主擁有將萬物結冰的強大魔法，在意外將王國變成永久寒冬後，妹妹踏上冰雪城堡尋找姐姐。`]},
+            {t:"海洋奇緣", h:"一隻智商極低、隨時都會把自己淹死的搞笑公雞。", c:[`主角身邊跟著一隻智商超低、總是瘋狂啄石頭、甚至差點把自己淹死的寵物公雞。`,`主角是太平洋島嶼上的酋長女兒，她從小就受到海洋的眷顧，被大海選中去歸還創造女神的心石。`,`為了拯救面臨枯萎的島嶼，這位少女偷划竹筏出海，並說服了一位全身都是會動的刺青、擁有一把神奇大魚鉤的半神英雄一同冒險。`]},
+            {t:"阿拉丁", h:"路邊撿到的舊油燈，搓一搓會跑出一個愛唱歌的藍色大叔。", c:[`這部電影最經典的畫面是男女主角坐在夜空中飛行的毯子上，在星空下深情對唱著嶄新的世界。`,`故事發生在充滿中東風情的王國，主角是一個在街頭流浪、有一隻調皮小猴子當夥伴的貧窮少年。`,`主角在神秘的魔法山洞裡找到了一盞古老油燈，只要摩擦燈身，就會召喚出一隻全身藍色、能實現三個願望的搞笑精靈。`]},
+            {t:"美女與野獸", h:"城堡裡的茶壺與時鐘，其實都會講話跟跳舞。", c:[`城堡裡的日常用品全都活了過來，包含會跳舞的蠟燭台、嚴肅的時鐘管家，以及一對溫馨的茶壺媽媽與茶杯兒子。`,`故事的核心是一朵被魔法玻璃罩保護著的紅玫瑰，當最後一片花瓣掉落時，身上的魔咒就再也無法解開。`,`故事講述一位熱愛閱讀的聰明鄉村少女，為了拯救被關押的父親，自願留在神秘城堡裡，陪伴一隻外表兇狠、內心溫柔的巨大怪物。`]},
+            {t:"小飛俠", h:"灑一點亮晶晶的粉末，想著快樂的事就能飛上夜空。", c:[`只要撒上一點亮晶晶的仙子飛粉，心裡想著最快樂的事情，你就能在夜空中自由飛翔。`,`故事裡的反派是一位戴著海盜帽、失去了一隻手掌的船長，他最害怕一隻吞了時鐘、會發出滴答聲的巨大鱷魚。`,`故事講述一個永遠不會長大的男孩，帶著人類世界的三姐弟前往一個住著小仙子和海盜的奇幻島嶼夢幻島。`]},
+            {t:"木偶奇遇記", h:"說話如果不誠實的話，臉部器官物理長度就會改變。", c:[`故事裡有一隻穿著禮服、拿著雨傘的蟋蟀，牠被仙女任命為主角的良心，負責在路上引導主角。`,`主角在逃學旅行的途中被騙到了歡樂玩具國，因為只顧著玩耍，最後竟然長出了一對醜陋的驢子耳朵。`,`故事講述一個由老木匠雕刻出來的木製人偶，只要一說謊，牠的鼻子就會瞬間變長，最後牠在鯨魚肚子裡救出父親變成了真正的男孩。`]},
+            {t:"星際寶貝", h:"披著可愛無害狗狗外衣的外星終極破壞生物。", c:[`故事背景發生在充滿陽光與沙灘的夏威夷群島，最經典的名言是家人就是沒有人會被放棄或遺忘。`,`主角是一隻由外星科學家非法製造出來的藍色生物，原本的設定是為了毀滅一切，卻在地球學會了愛與關懷。`,`這隻外星六隻腳生物偽裝成一隻奇怪的狗，被一個孤單的夏威夷小女孩收養，牠最喜歡聽知名搖滾歌手的經典歌曲。`]},
+            {t:"龍貓", h:"下雨天的森林公車站，旁邊站著一隻巨大毛茸茸。", c:[`故事裡有一台非常奇特的交通工具，它有十二隻腳、兩盞像大燈一樣的大眼睛，而且是一隻巨大的貓咪。`,`故事講述一對姐妹和爸爸搬到了鄉下的舊房子，在大森林裡遇到了一隻只有心思純潔的小孩才能看見的森林守護神。`,`這部經典動畫的招牌畫面，是主角一邊在雨中的公車站等公車，一邊把雨傘借給身旁一隻毛茸茸、肚子大大的灰色巨大怪獸。`]},
+            {t:"魔女宅急便", h:"十三歲少女修行的第一份工作，是騎著掃帚送外賣。", c:[`故事講述一個年滿十三歲的小魔女，必須依照傳統離開家鄉前往一座陌生城市，展開為期一年的獨立修行。`,`主角身邊總是跟著一隻會說話的黑貓，雖然她只會一項飛行魔法，但她利用這項能力在麵包店開了一間快遞公司。`,`這位實習少女戴著巨大的紅色蝴蝶結、穿著黑色連身裙，在空中騎著一把飛天掃帚為城市居民送快遞。`]},
+            {t:"小王子", h:"畫在箱子裡的綿羊，跟一朵全宇宙最傲嬌的玫瑰花。", c:[`主角住在一顆只有三座迷你火山和一朵驕傲玫瑰花的超迷你小行星上。`,`他在旅途中造訪了許多星球，遇到了國王、愛慕虛榮的人、酒鬼和商人，最後降落在地球的沙漠中。`,`他在沙漠裡遇到了一位迫降的飛行員，並請對方幫忙畫一隻裝在箱子裡的小羊，在旅途中他還被一隻狐狸馴服了。`]},
+            {t:"史瑞克", h:"住在沼澤裡的綠色怪物，身邊跟著一隻話超多的驢子。", c:[`這部動畫徹底顛覆了傳統童話，原本應該拯救大家的白馬王子，在故事裡竟然變成了自私自利的自戀狂反派。`,`主角是一隻住在沼澤裡、皮膚綠色、耳朵像喇叭的巨大怪物，牠身邊有一隻超級多話、喜歡唱歌的驢子夥伴。`,`這隻綠色怪物為了奪回自己的沼澤，答應領主去高塔拯救被火龍看守的公主，沒想到這位美麗的公主到了晚上也會變成綠色怪物。`]},
+            {t:"神隱少女", h:"在神秘湯屋上班的第一件事，是名字被老闆娘沒收。", c:[`故事裡最神祕的配角是一個全身漆黑、戴著白色面具的怪物，牠會變出黃金吸引別人，最後在溫泉旅館裡暴走狂吃。`,`故事主角是一個十歲的小女孩，因為父母在神祕小鎮上貪吃供品而變成了豬，她被迫留在神明的溫泉旅館裡打工。`,`為了生存，溫泉旅館的魔女老闆奪走了女孩的名字，幸好有一位能變成白龍的少年暗中幫助她找回記憶。`]},
+            {t:"灰姑娘", h:"午夜十二點鐘聲一響，頂級豪車就會變回菜市場南瓜。", c:[`這部故事讓一種原本不適合走路的易碎材質鞋子，成為了浪漫與尋人啟事的代名詞。`,`女主角每天都要幫壞心的繼母和兩個姐姐做家事，直到神仙教母用南瓜和老鼠變出了華麗的馬車與隨從。`,`魔咒在午夜十二點就會準時失效，女主角在慌忙離開城堡時，不小心在樓梯上掉落了一隻玻璃鞋。`]},
+            {t:"小紅帽", h:"大野狼今天出門的穿搭，決定套上老太太的連身睡衣。", c:[`故事裡的外婆家住在森林深處，而反派最經典的台詞是我的耳朵大是為了聽得更清楚，我的嘴巴大是為了吃掉你啊！`,`女主角因為穿著一件非常鮮豔的連帽斗篷而得名，奉媽媽的命令要送蛋糕和葡萄酒去探望生病的外婆。`,`大野狼搶先一步吞掉了外婆並偽裝躺在床上，最後幸好有勇敢的獵人剪開狼肚子救出大家。`]},
+            {t:"三隻小豬", h:"蓋房子絕對不能偷工減料，否則會被一口氣物理吹垮。", c:[`這個故事間接促進了建築業界對於建材安全性的重視，反派最擅長的技能是深呼吸。`,`三兄弟長大後離開家，分別用稻草、木頭和磚塊建造了自己的避難所。`,`大野狼輕鬆吹倒了老大和老二的家，卻對老三那棟堅固的磚頭房子毫無辦法，最後只好試圖從煙囪爬進去。`]},
+            {t:"白雪公主", h:"小心繼母壞皇后遞給你的任何誘人水果！", c:[`這部故事裡有一面全知全能的鏡子，每天都要回答誰是世界上最漂亮的人，簡直是古代版的人工智慧。`,`女主角因為長得太漂亮遭到繼母嫉妒被迫逃進森林，並得到了七位個子矮小的採礦工人的收留。`,`女主角最後因為吃了一口有毒的紅蘋果而陷入昏迷，直到被王子親吻才醒過來。`]},
+            
+            // 20 個全新故事
+            {t:"哈利波特", h:"額頭上有閃電傷痕的少年，收到貓頭鷹親送的錄取信。", c:[`主角從小只能寄宿在親戚家樓梯下狹小的碗櫥間，直到十一歲生日收到由鳥類親自投遞的信件。`,`上學必須穿過火車站一面神秘的磚牆，抵達九又四分之三月台搭乘復古紅色蒸汽火車。`,`這是一所學習魔咒與飛行掃帚的魔法學校，校內四個學院每年都會爭奪學院盃榮譽。`]},
+            {t:"西遊記", h:"師徒四人加上一匹白馬，歷經九九八十一難的取經冒險。", c:[`裡面的大師兄因為大鬧天界，被一座巨大的五指石山重重壓了整整五百年。`,`隊伍裡有一位動不動就喊著想分行李回家的豬妖，和一位老實挑擔的河怪師弟。`,`他們一路保護一位只會念緊箍咒的和尚前往西方，大師兄手中握有一根能隨意變長變粗的神鐵。`]},
+            {t:"三國演義", h:"桃園結義與借東風，英雄輩出的三國爭霸史詩傳奇。", c:[`故事開頭三位志同道合的豪傑在盛開的桃花園裡結拜為兄弟，發誓同生共死。`,`最聰明的軍師曾在大霧瀰漫的江面上利用稻草人，不費一兵一卒向敵營借來了十萬支弓箭。`,`三大勢力在中原大地展開智謀與武力的角逐，赤壁之戰的漫天火海更是改變了天下的局勢。`]},
+            {t:"糖果屋", h:"森林深處由甜點搭建的夢幻房屋，其實是可怕陷阱。", c:[`兩兄妹被狠心的繼母遺棄在漆黑森林裡，哥哥聰明地沿路拋灑白色小石子和麵包屑來認路。`,`他們在飢餓時發現了一座屋頂由鬆軟蛋糕製成、窗戶由透明糖霜鑲嵌的不可思議甜點屋。`,`屋子裡住著一位專門把貪吃小孩關進鐵籠裡餵胖、打算生火烤來吃的邪惡老巫婆。`]},
+            {t:"愛麗絲夢遊仙境", h:"跟著穿背心的兔子跳入深洞，展開瘋狂下午茶冒險。", c:[`主角在河畔看見一隻穿著背心、拿著懷錶趕時間的白色兔子，好奇跟著跳進了深不見底的洞穴。`,`這個世界裡有喝了會縮小、吃了會變巨大的奇妙點心，還有一場永遠不會散場的混亂下午茶。`,`這裡的最高統治者是一位脾氣火爆、動不動就咆哮著要砍掉別人腦袋的撲克牌紅心女王。`]},
+            {t:"傑克與魔豆", h:"幾顆神奇豆子一夜竄入雲端，頂端住著暴躁的巨人。", c:[`貧窮的農家少年瞞著母親，把家裡賴以維生的老母牛換成了幾顆看似普通的彩色種子。`,`種子在一夜之間瘋狂生長，形成了一條直通天空雲層彼端的巨大綠色藤蔓階梯。`,`他爬到雲上的城堡偷走了會下純金蛋的母雞和自動彈奏的豎琴，最後砍斷藤蔓化解了危機。`]},
+            {t:"睡美人", h:"碰觸紡車針尖後陷入百年深睡，唯有真愛之吻能喚醒。", c:[`在慶祝誕生的洗禮宴會上，一位未被邀請的黑衣邪惡女巫前來降下了可怕的十六歲詛咒。`,`整個王國的所有人在預言成真後，隨著城堡被密密麻麻的荊棘與玫瑰藤蔓覆蓋，陷入了長眠。`,`經過了一百年，一位英勇的王子披荊斬棘闖入高塔，用深情的吻打破了沉睡的魔法。`]},
+            {t:"青蛙王子", h:"掉進深井的金球，引來了一位滑溜溜的綠色小訪客。", c:[`嬌縱的王國公主在森林水池邊玩耍時，不小心把自己最喜愛的純金小球掉進了深不見底的水井。`,`一隻全身滑溜溜的綠色兩棲動物答應幫忙撈球，但要求公主必須和牠同桌共餐並成為玩伴。`,`公主在忍無可忍之下將這隻綠色生物用力摔向牆壁，沒想到奇蹟發生，牠變成了英俊的王子。`]},
+            {t:"長髮公主", h:"住在無門高塔上的少女，頭髮唱起歌來會發出治癒金光。", c:[`少女被虛偽的女巫撫養長大，從小被嚴格禁止離開這座沒有門、只有一扇窗戶的高塔。`,`她的金黃色長髮擁有幾十公尺的驚人長度，只要唱起古老歌謠就能發出治癒創傷的神奇光芒。`,`一位誤闖高塔的通緝犯小偷被平底鍋敲暈後，答應帶少女偷溜出去觀賞每年生日施放的天燈。`]},
+            {t:"小美人魚", h:"用最美妙的天籟歌聲換取雙腿，每走一步都像踩在刀尖上。", c:[`海底深處年紀最小的人魚少女在暴風雨中救起了一位遇難者，並對陸地世界產生無比憧憬。`,`她尋求章魚外型的深海女巫協助，用自己最動人的聲音作為代價，換取了一雙人類的雙腿。`,`如果無法得到真愛的心，少女將無法回到大海，而是在隔天清晨的金色陽光下化為海上的泡沫。`]},
+            {t:"汪汪隊立大功", h:"沒有困難的工作，只有勇敢的狗狗！冒險灣由我們守護。", c:[`這支搜救隊伍的總部位於一座能滑滑梯出動的高科技瞭望塔，口號是隨時呼叫隨時出動。`,`每位成員都有專屬的裝備背包與專屬載具，包含警用巡邏車、雲梯消防車、直升機和推土機。`,`一位十歲的科技天才少年帶領著六隻勇敢的搜救小狗，每天都在保護海灣城鎮的安全與和平。`]},
+            {t:"超人力霸王", h:"胸前的彩色計時器開始閃爍紅光，代表只剩三分鐘時間！", c:[`來自外太空光之星的巨大銀紅巨人，平時會附身在地球的人類特別防衛隊隊員身上。`,`每次現身在城市保護地球時，胸前的能源指示燈只要開始由藍轉紅狂閃，就代表能量即將耗盡。`,`戰鬥結束前的招牌動作是將雙手交叉擺成十字或Ｌ形，發射出消滅巨大怪獸的必殺光線。`]},
+            {t:"超級瑪利歐", h:"紅色帽子與大鬍子水管工，專門敲磚塊與跳躍踩烏龜。", c:[`這對水管工兄弟只要鑽進地面上的綠色水管，就能穿梭在奇妙的蘑菇王國地下世界。`,`敲碎空中的問號磚塊可以獲得金幣，吃下紅點蘑菇身體會變大，拿到星星還能全身無敵衝刺。`,`他們歷經千辛萬苦踩倒無數隻烏龜士兵，只為了從噴火龍魔王手中救回被抓走的粉紅洋裝公主。`]},
+            {t:"霍爾的移動城堡", h:"用四隻鋼鐵巨腳在荒野上行走的房子，心臟是一團火。", c:[`一位製作帽子的年輕少女遭到了女巫的嫉妒，被施加可怕的衰老詛咒變成了一位九十歲老太太。`,`她誤打誤撞住進了一座由四隻機械腳支撐、外觀像拼裝廢鐵一樣在荒野漫遊的神秘建築。`,`這棟房子能夠四處走動的動力源頭，是一隻被契約束縛、最喜歡吞食木柴和培根的火之惡魔。`]},
+            {t:"崖上的波妞", h:"人面金魚想要變成人類小女孩，最愛吃熱騰騰的厚切火腿！", c:[`一隻紅色的人面小金魚因為好奇游到岸邊，頭不小心卡在玻璃果醬罐裡，被人類小男孩救出。`,`為了變成人類去找小男孩，她舔食了傷口的血並引發了差點吞沒整座海港小鎮的遠古巨浪海嘯。`,`這位精力充沛的紅衣小女孩最喜歡吃泡麵裡的熱火腿，只要通過愛的考驗就不會化成泡沫。`]},
+            {t:"音速小子", h:"全身藍色刺蝟，能以超越音速的極致速度滾動衝刺！", c:[`他擁有傲視全宇宙的奔跑速度，在奔跑中只要受到敵人傷害，收集的金色光圈就會噴灑一地。`,`他的核心招式是把自己縮成一顆長滿藍色尖刺的球體高速旋轉，將沿途的機器人撞成廢鐵。`,`他的死對頭是一位智商極高、留著巨大八字鬍、總想用機械征服世界的瘋狂蛋頭科學家。`]},
+            {t:"馴龍高手", h:"維京少年與斷了尾翼的漆黑飛龍，用理解取代戰鬥。", c:[`在一個世代以獵殺噴火怪物為榮的北方維京海盜島嶼上，瘦弱的酋長兒子完全不擅長打打殺殺。`,`主角意外用發射網擊落了一隻傳說中像閃電般神祕危險、全身漆黑如墨的隱形噴火巨龍。`,`他不僅沒有傷害這隻巨龍，還親手用皮革替牠打造了義肢尾翼，兩者建立起改變歷史的深厚牽絆。`]},
+            {t:"大英雄天團", h:"白色充氣胖胖健康護理機器人，一個溫暖熊抱能治癒一切。", c:[`科技天才少年在兄長遭遇火災意外後，意外喚醒了兄長生前發明的個人醫療保健助手。`,`這台外型像巨大白色棉花糖的充氣機器人，只要聽到主人說「我對你的照顧感到滿意」才會關機。`,`少年替這台圓滾滾的機器人和好友們研發了戰甲，並替機器人裝上了火箭飛拳與超強飛行翼。`]},
+            {t:"動物森友會", h:"無人島移居計畫，向穿夏威夷襯衫的狸貓老闆背上房貸。", c:[`玩家搭乘水上飛機前往一座無人荒島，開始過起拿著捕蟲網抓蝴蝶、拿著釣竿釣魚的悠閒生活。`,`島上所有的商店建設與房屋擴建貸款，全由一位穿著夏威夷襯衫、算盤打得很精的狸貓商人包辦。`,`居民每天都要敲石頭、搖果樹、賣大頭菜賺取鈴錢，好把一開始的簡陋帳篷升級成豪華大宅。`]},
+            {t:"綠野仙蹤", h:"被龍捲風吹來的紅寶石鞋，踏上黃磚路尋找偉大魔法師。", c:[`小女孩和小狗被一場巨大的龍捲風連同房屋一起吹到了奇幻國度，意外砸死了邪惡女巫。`,`她穿著發光的紅寶石鞋沿著黃色磚塊大道前進，沿途結識了想要頭腦的稻草人和想要心臟的鐵皮人。`,`還有一隻想要得到勇氣的膽小獅子加入隊伍，四個夥伴決定結伴前往翡翠城尋找大法師實現願望。`]}
+        ];
+
+        let DB = [];
+        let curIdx = 0;
+        let stuCount = 30;
+        let scores = [];
+        let cluesUsed = 0;
+        let isAnswered = false;
+        let selectedIndices = new Set(rawDB.map((_, i) => i)); // 預設 70 題全選
+
+        // 初始化大廳勾選清單
+        function initLobbyChecklist() {
+            const grid = document.getElementById('story-grid');
+            grid.innerHTML = '';
+            rawDB.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `story-item ${selectedIndices.has(index) ? 'checked' : ''}`;
+                itemDiv.id = `story-card-${index}`;
+                itemDiv.onclick = (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = document.getElementById(`cb-${index}`);
+                        cb.checked = !cb.checked;
+                        toggleStory(index, cb.checked);
+                    }
+                };
+
+                itemDiv.innerHTML = `
+                    <input type="checkbox" id="cb-${index}" ${selectedIndices.has(index) ? 'checked' : ''} onchange="toggleStory(${index}, this.checked)">
+                    <span>${index + 1}. ${item.t}</span>
+                `;
+                grid.appendChild(itemDiv);
+            });
+            updateCounterText();
+        }
+
+        // 單項切換
+        function toggleStory(index, isChecked) {
+            sfx('open');
+            if (isChecked) {
+                selectedIndices.add(index);
+                document.getElementById(`story-card-${index}`).classList.add('checked');
+            } else {
+                selectedIndices.delete(index);
+                document.getElementById(`story-card-${index}`).classList.remove('checked');
+            }
+            updateCounterText();
+        }
+
+        // 一鍵全選 / 一鍵取消
+        function toggleSelectAll(selectAll) {
+            sfx('open');
+            selectedIndices.clear();
+            rawDB.forEach((_, index) => {
+                const cb = document.getElementById(`cb-${index}`);
+                const card = document.getElementById(`story-card-${index}`);
+                if (selectAll) {
+                    selectedIndices.add(index);
+                    cb.checked = true;
+                    card.classList.add('checked');
+                } else {
+                    cb.checked = false;
+                    card.classList.remove('checked');
+                }
+            });
+            updateCounterText();
+        }
+
+        function updateCounterText() {
+            document.getElementById('selected-counter').innerText = `已選取：${selectedIndices.size} / ${rawDB.length} 題`;
+        }
+
+        // Fisher-Yates 洗牌演算法
+        function shuffleArray(arr) {
+            let shuffled = [...arr];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // 開始遊戲
+        function initGame() {
+            if (selectedIndices.size === 0) {
+                alert("⚠️ 老師，請至少勾選一個故事題目才能開始挑戰喔！");
+                return;
+            }
+
+            stuCount = parseInt(document.getElementById('total-stu').value) || 30;
+            scores = new Array(stuCount).fill(0);
+            
+            const chosen = rawDB.filter((_, idx) => selectedIndices.has(idx));
+            DB = shuffleArray(chosen);
+            curIdx = 0;
+
+            const g = document.getElementById('seat-grid');
+            g.innerHTML = '';
+            for(let i=0; i<stuCount; i++){
+                g.innerHTML += `<div class="seat" onclick="awardSeat(${i})"><div class="num">${i+1}</div><div class="pt" id="sp-${i}">0</div></div>`;
+            }
+
+            // 使用 fromTo 強制指定樣式，避免狀態衝突
+            gsap.to("#lobby", {
+                opacity: 0, scale: 0.95, duration: 0.25, 
+                onComplete: () => {
+                    document.getElementById('lobby').style.display = 'none';
+                    document.getElementById('game').style.display = 'flex';
+                    gsap.fromTo("#game", 
+                        { opacity: 0, scale: 0.95 }, 
+                        { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.4)" }
+                    );
+                    renderQ();
+                }
+            });
+        }
+
+        // 返回大廳設定鍵 (修正：使用 fromTo 確保大廳 opacity 正確恢復為 1)
+        function backToLobby() {
+            if (confirm("🔔 要返回大廳重新選擇題目或調整座號嗎？\n（注意：目前的答題進度將會重置喔！）")) {
+                sfx('open');
+                gsap.to("#game", {
+                    opacity: 0, scale: 0.95, duration: 0.25, 
+                    onComplete: () => {
+                        document.getElementById('game').style.display = 'none';
+                        const lobby = document.getElementById('lobby');
+                        lobby.style.display = 'flex';
+                        gsap.fromTo("#lobby", 
+                            { opacity: 0, scale: 0.95 }, 
+                            { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.4)" }
+                        );
+                    }
+                });
+            }
+        }
+
+        function renderQ() {
+            cluesUsed = 0; isAnswered = false;
+            document.getElementById('badge').innerText = `📜 第 ${curIdx+1} / ${DB.length} 題`;
+            document.getElementById('clue-text').style.display = 'block';
+            document.getElementById('clue-text').innerText = "✨ 題序已隨機洗牌！請點擊寶箱開啟第一道線索";
+            document.getElementById('hint-box').style.display = 'none';
+            document.getElementById('ans-text').style.display = 'none';
+
+            ['bc1','bc2','bc3','bh'].forEach(id => document.getElementById(id).classList.remove('disabled'));
+            document.getElementById('br').className = "act-btn btn-r";
+            document.getElementById('br').innerHTML = "🎁 答案";
+            
+            document.getElementById('bc1').innerHTML = `📖 ❶ <small>得 10 分</small>`;
+            document.getElementById('bc2').innerHTML = `📖 ❷ <small>得 5 分</small>`;
+            document.getElementById('bc3').innerHTML = `📖 ❸ <small>得 2 分</small>`;
+            
+            gsap.fromTo("#clue-text", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.3 });
+        }
+
+        function showClue(n) {
+            sfx('open');
+            const b = document.getElementById(`bc${n}`);
+            b.classList.add('disabled');
+            b.innerHTML = `✔ 📖 <small>已開</small>`;
+
+            const t = document.getElementById('clue-text');
+            t.innerText = DB[curIdx].c[n-1];
+            gsap.fromTo(t, { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.5)" });
+
+            if(cluesUsed < n) cluesUsed = n;
+        }
+
+        function showHint() {
+            sfx('open');
+            document.getElementById('bh').classList.add('disabled');
+            const h = document.getElementById('hint-box');
+            h.innerText = DB[curIdx].h;
+            h.style.display = 'inline-block';
+            gsap.fromTo(h, { y: -15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3 });
+        }
+
+        function handleRedBtn() {
+            if(!isAnswered){
+                if(cluesUsed === 0){ alert("老師，請至少點開一格線索再猜答案喔！"); return; }
+                sfx('tada');
+                isAnswered = true;
+                
+                document.getElementById('clue-text').style.display = 'none';
+                document.getElementById('hint-box').style.display = 'none';
+                
+                const ans = document.getElementById('ans-text');
+                ans.innerText = `🎉 ${DB[curIdx].t}`;
+                ans.style.display = 'block';
+                gsap.fromTo(ans, { scale: 0.2, rotation: -8, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.65, ease: "elastic.out(1, 0.6)" });
+
+                const btnR = document.getElementById('br');
+                btnR.className = "act-btn btn-r mode-award";
+                let pt = cluesUsed===1?10 : cluesUsed===2?5 : 2;
+                btnR.innerHTML = `🏆 給學生加分 <small>本次可加 +${pt} 分</small>`;
+            } else {
+                openScoreboard();
+            }
+        }
+
+        function openScoreboard() {
+            sfx('open');
+            let pt = cluesUsed===1?10 : cluesUsed===2?5 : cluesUsed===3?2 : 0;
+            document.getElementById('modal-title').innerText = pt>0 ? `🏆 點選答對的座號 (本次 +${pt} 分)` : `🏆 全班目前計分榜`;
+            document.getElementById('modal').style.display = 'flex';
+            gsap.fromTo(".modal-body", { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3 });
+        }
+
+        function closeScoreboard() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function awardSeat(i) {
+            let pt = cluesUsed===1?10 : cluesUsed===2?5 : cluesUsed===3?2 : 0;
+            if(pt === 0){ alert("還沒開始下一題計分喔！"); return; }
+
+            sfx('coin');
+            scores[i] += pt;
+            const el = document.getElementById(`sp-${i}`);
+            el.innerText = scores[i];
+            gsap.fromTo(el.parentElement, { scale: 1.2, borderColor: "#4caf50" }, { scale: 1, borderColor: "#ffca28", duration: 0.4 });
+            
+            setTimeout(closeScoreboard, 450);
+        }
+
+        function skipQ() {
+            curIdx++;
+            if(curIdx >= DB.length){ 
+                alert(`🎉 太神了！全班已經把選取的 ${DB.length} 題全部解密完畢！系統即將「重新隨機洗牌」再玩一輪！`); 
+                const chosen = rawDB.filter((_, idx) => selectedIndices.has(idx));
+                DB = shuffleArray(chosen);
+                curIdx = 0; 
+            }
+            renderQ();
+        }
+
+        window.onload = () => {
+            initLobbyChecklist();
+        };
+    </script>
+</body>
+</html>
